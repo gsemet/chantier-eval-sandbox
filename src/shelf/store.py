@@ -13,31 +13,53 @@ def data_path() -> Path:
     return Path(os.environ.get("SHELF_DATA") or "shelf.json")
 
 
-def load() -> list[dict]:
+def _read() -> tuple[list[dict], int]:
+    """The items and the next id. An older file is a bare list: its next id is the highest + 1."""
     path = data_path()
     if not path.exists():
-        return []
-    return json.loads(path.read_text(encoding="utf-8"))
+        return [], 1
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        return data, max((i["id"] for i in data), default=0) + 1
+    items = data["items"]
+    return items, max(data["next_id"], max((i["id"] for i in items), default=0) + 1)
 
 
-def save(items: list[dict]) -> None:
+def load() -> list[dict]:
+    return _read()[0]
+
+
+def save(items: list[dict], next_id: int | None = None) -> None:
+    if next_id is None:
+        next_id = _read()[1]
+    next_id = max(next_id, max((i["id"] for i in items), default=0) + 1)
     path = data_path()
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(items, indent=2) + "\n", encoding="utf-8")
+    payload = {"next_id": next_id, "items": items}
+    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     os.replace(temporary, path)
 
 
 def add(title: str, url: str = "") -> dict:
-    items = load()
+    items, next_id = _read()
     item = {
-        "id": max((i["id"] for i in items), default=0) + 1,
+        "id": next_id,
         "title": title,
         "url": url,
         "status": DEFAULT_STATUS,
         "added": datetime.date.today().isoformat(),
     }
-    save([*items, item])
+    save([*items, item], next_id + 1)
     return item
+
+
+def delete(item_id: int) -> bool:
+    items, next_id = _read()
+    kept = [i for i in items if i["id"] != item_id]
+    if len(kept) == len(items):
+        return False
+    save(kept, next_id)
+    return True
 
 
 def get(item_id: int) -> dict | None:
