@@ -103,3 +103,45 @@ def test_the_title_has_at_most_200_characters():
 @pytest.mark.parametrize("url", ["example.com", "ftp://example.com", "javascript:alert(1)"])
 def test_the_link_starts_with_http_or_https(url):
     assert "http" in validate_new("A book", url)[1]
+
+
+def test_the_item_page_has_a_delete_form(client):
+    client.post("/items", {"title": "Book"})
+    page = client.get("/items/1").text
+    assert '<form method="post" action="/items/1/delete">' in page
+    assert ">Delete</button>" in page
+
+
+def test_delete_redirects_and_removes_only_that_item(client):
+    client.post("/items", {"title": "Gone"})
+    client.post("/items", {"title": "Kept"})
+    response = client.post("/items/1/delete", {})
+    assert response.status == 303
+    assert response.headers["location"] == "/"
+    assert "Gone" not in client.get("/").text
+    assert "Kept" in client.get("/").text
+    assert client.get("/items/1").status == 404
+    assert client.get("/items/2").status == 200
+
+
+def test_delete_of_an_unknown_item_is_the_404_page(client):
+    response = client.post("/items/99/delete", {})
+    assert response.status == 404
+    assert "404" in response.text
+
+
+def test_get_on_the_delete_path_is_405(client):
+    client.post("/items", {"title": "Book"})
+    response = client.get("/items/1/delete")
+    assert response.status == 405
+    assert response.headers["allow"] == "POST"
+    assert client.get("/items/1").status == 200
+
+
+def test_an_id_is_never_given_twice_even_after_deleting_the_highest(client):
+    client.post("/items", {"title": "One"})
+    client.post("/items", {"title": "Two"})
+    client.post("/items/2/delete", {})
+    client.post("/items", {"title": "Three"})
+    assert client.get("/items/2").status == 404
+    assert client.get("/items/3").status == 200

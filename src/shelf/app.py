@@ -15,6 +15,7 @@ ITEM = re.compile(r"^/items/(\d+)$")
 ITEM_EDIT = re.compile(r"^/items/(\d+)/edit$")
 API_ITEM = re.compile(r"^/api/items/(\d+)$")
 ITEM_STATUS = re.compile(r"^/items/(\d+)/status$")
+ITEM_DELETE = re.compile(r"^/items/(\d+)/delete$")
 HTML = "text/html; charset=utf-8"
 
 
@@ -122,6 +123,14 @@ def app(environ, start_response):
             return _error(start_response, 400)
         store.set_status(item_id, status)
         return _redirect(start_response, f"/items/{item_id}")
+
+    match = ITEM_DELETE.match(path)
+    if match:
+        if method != "POST":
+            return _error(start_response, 405, [("Allow", "POST")])
+        if not store.delete(int(match.group(1))):
+            return _error(start_response, 404)
+        return _redirect(start_response, "/")
 
     if path == "/static/style.css":
         if method != "GET":

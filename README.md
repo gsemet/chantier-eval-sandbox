@@ -33,6 +33,7 @@ uv run --locked pytest -q           # the CI's command
 | GET | `/api/items` | All items as a JSON array in id order (`id`, `title`, `url` or `null`, `status`, `added`); `application/json; charset=utf-8`, titles not HTML-escaped. The list page links to it (`JSON`) |
 | GET | `/api/items/<id>` | That item as a JSON object; unknown id: 404 `{"error": "not found"}` as JSON |
 | GET | `/stats` | The statistics page: a table of the item counts for To read, Reading, Done and Total |
+| POST | `/items/<id>/delete` | Removes the item. 303 to `/`; 404 page if unknown. Its id is never given again |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
 
@@ -42,6 +43,9 @@ Any other path gets the 404 page. A known path with the wrong method gets 405.
 
 The items live in a JSON file: the path in the `SHELF_DATA` environment variable, else
 `shelf.json` in the current folder. A missing file is an empty shelf.
+
+The file holds `{"next_id": N, "items": [...]}`; `next_id` is what makes an id never given twice,
+even after a delete. A file that is a bare list of items is still read.
 
 An item has an `id`, a `title` (1 to 200 characters), an optional `url` (starting with `http://`
 or `https://`), a `status` (`to-read`, `reading` or `done`) and the date it was `added`.
