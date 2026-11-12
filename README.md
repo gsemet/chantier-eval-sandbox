@@ -30,6 +30,8 @@ uv run --locked pytest -q           # the CI's command
 | GET | `/items/<id>/edit` | The edit form, filled with the item's title and link; 404 page if unknown |
 | POST | `/items/<id>/edit` | Saves `title` and `url`, validated as adding; status and date added are kept. On success: 303 to the item's page. On invalid input: 400, the edit page again with the error message and the values entered, nothing saved. 404 on an unknown item |
 | POST | `/items/<id>/status` | Sets `status` from the form. 303 to the item's page; 400 on an unknown status; 404 on an unknown item |
+| GET | `/api/items` | All items as a JSON array in id order (`id`, `title`, `url` or `null`, `status`, `added`); `application/json; charset=utf-8`, titles not HTML-escaped. The list page links to it (`JSON`) |
+| GET | `/api/items/<id>` | That item as a JSON object; unknown id: 404 `{"error": "not found"}` as JSON |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
 
