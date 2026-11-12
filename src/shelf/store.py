@@ -52,3 +52,14 @@ def set_status(item_id: int, status: str) -> dict | None:
     item["status"] = status
     save(items)
     return item
+
+
+def update(item_id: int, title: str, url: str) -> dict | None:
+    items = load()
+    item = next((i for i in items if i["id"] == item_id), None)
+    if item is None:
+        return None
+    item["title"] = title
+    item["url"] = url
+    save(items)
+    return item
