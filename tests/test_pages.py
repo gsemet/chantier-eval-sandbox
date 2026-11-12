@@ -81,6 +81,60 @@ def test_a_query_string_is_not_part_of_the_path(client):
     assert client.get("/?status=done").status == 200
 
 
+def _three_items(client):
+    for title in ("Dune", "Emma", "Ubik"):
+        client.post("/items", {"title": title})
+    client.post("/items/2/status", {"status": "reading"})
+    client.post("/items/3/status", {"status": "done"})
+
+
+def test_the_status_filter_keeps_only_that_status(client):
+    _three_items(client)
+    page = client.get("/?status=reading").text
+    assert "Emma" in page and "Dune" not in page and "Ubik" not in page
+    page = client.get("/?status=to-read").text
+    assert "Dune" in page and "Emma" not in page
+    page = client.get("/?status=done").text
+    assert "Ubik" in page and "Dune" not in page
+
+
+def test_no_or_empty_status_shows_all_items(client):
+    _three_items(client)
+    for path in ("/", "/?status="):
+        page = client.get(path).text
+        assert "Dune" in page and "Emma" in page and "Ubik" in page
+
+
+def test_an_unknown_status_gets_400_with_the_escaped_value(client):
+    response = client.get("/?status=<b>x</b>")
+    assert response.status == 400
+    assert "Unknown status: &lt;b&gt;x&lt;/b&gt;" in response.text
+    assert "<b>x</b>" not in response.text
+
+
+def test_the_filters_nav_marks_the_current_filter(client):
+    expected = [("All", "/"), ("To read", "/?status=to-read"), ("Reading", "/?status=reading"), ("Done", "/?status=done")]
+    for current, path in enumerate(p for _, p in expected):
+        page = client.get(path).text
+        nav = page[page.index('<nav class="filters">'):page.index("</nav>")]
+        assert nav.count("aria-current") == 1
+        for index, (label, href) in enumerate(expected):
+            link = f'<a href="{href}"' + (' aria-current="page"' if index == current else "") + f">{label}</a>"
+            assert link in nav
+        assert [nav.index(f">{label}<") for label, _ in expected] == sorted(nav.index(f">{label}<") for label, _ in expected)
+
+
+def test_a_filter_that_matches_nothing_says_so(client):
+    client.post("/items", {"title": "Dune"})
+    page = client.get("/?status=done").text
+    assert "No items with this status." in page
+    assert "Nothing on the shelf yet." not in page
+
+
+def test_the_filtered_index_only_accepts_get(client):
+    assert client.post("/?status=done", {}).status == 405
+
+
 def test_the_stylesheet(client):
     response = client.get("/static/style.css")
     assert response.status == 200

@@ -50,7 +50,13 @@ def app(environ, start_response):
     if path == "/":
         if method != "GET":
             return _error(start_response, 405, [("Allow", "GET")])
-        return _respond(start_response, 200, views.index(store.load()))
+        status = parse_qs(environ.get("QUERY_STRING") or "").get("status", [""])[0]
+        if status and status not in STATUSES:
+            return _respond(start_response, 400, views.error(400, f"Unknown status: {status}"))
+        items = store.load()
+        if status:
+            items = [i for i in items if i["status"] == status]
+        return _respond(start_response, 200, views.index(items, status=status))
 
     if path == "/items":
         if method != "POST":

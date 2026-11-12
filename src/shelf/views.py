@@ -19,16 +19,34 @@ def page(title: str, body: str) -> str:
     return _template("base.html").substitute(title=escape(title), body=body, version=escape(__version__))
 
 
-def index(items: list[dict], error: str = "", values: dict | None = None) -> str:
+FILTERS = (
+    ("All", "", "/"),
+    ("To read", "to-read", "/?status=to-read"),
+    ("Reading", "reading", "/?status=reading"),
+    ("Done", "done", "/?status=done"),
+)
+
+
+def _filters(current: str) -> str:
+    here = ' aria-current="page"'
+    links = "\n".join(
+        f'  <a href="{href}"{here if value == current else ""}>{label}</a>' for label, value, href in FILTERS
+    )
+    return f'<nav class="filters">\n{links}\n</nav>'
+
+
+def index(items: list[dict], error: str = "", values: dict | None = None, status: str = "") -> str:
     values = values or {}
+    empty = "No items with this status." if status else "Nothing on the shelf yet."
     rows = "\n".join(
         f'<li><a href="/items/{i["id"]}">{escape(i["title"])}</a> '
         f'<span class="status">{escape(i["status"])}</span> '
         f'<span class="added">{escape(i["added"])}</span></li>'
         for i in items
-    ) or '<li class="empty">Nothing on the shelf yet.</li>'
+    ) or f'<li class="empty">{empty}</li>'
     message = f'<p class="error">{escape(error)}</p>' if error else ""
     body = _template("index.html").substitute(
+        filters=_filters(status),
         rows=rows,
         error=message,
         title_value=escape(values.get("title", ""), quote=True),
