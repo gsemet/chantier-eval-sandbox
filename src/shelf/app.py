@@ -128,6 +128,11 @@ def app(environ, start_response):
             return _error(start_response, 405, [("Allow", "GET")])
         return _respond(start_response, 200, (STATIC / "style.css").read_bytes(), "text/css; charset=utf-8")
 
+    if path == "/stats":
+        if method != "GET":
+            return _error(start_response, 405, [("Allow", "GET")])
+        return _respond(start_response, 200, views.stats(store.load()))
+
     if path == "/healthz":
         if method != "GET":
             return _error(start_response, 405, [("Allow", "GET")])

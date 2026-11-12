@@ -1,4 +1,5 @@
 import json
+import re
 
 from shelf import __version__, store
 
@@ -145,3 +146,33 @@ def test_healthz(client):
     response = client.get("/healthz")
     assert response.status == 200
     assert json.loads(response.text) == {"status": "ok", "version": __version__}
+
+
+def _stats_cells(page):
+    return re.findall(r"<th>(.*?)</th><td>(.*?)</td>", page)
+
+
+def test_the_stats_page_shows_four_zeros_on_an_empty_shelf(client):
+    response = client.get("/stats")
+    assert response.status == 200
+    assert "<h1>Statistics</h1>" in response.text and '<table class="stats">' in response.text
+    assert _stats_cells(response.text) == [("To read", "0"), ("Reading", "0"), ("Done", "0"), ("Total", "0")]
+    assert __version__ in response.text
+
+
+def test_the_stats_page_counts_by_status(client):
+    for title in ("A", "B", "C"):
+        client.post("/items", {"title": title, "url": ""})
+    client.post("/items/2/status", {"status": "reading"})
+    client.post("/items/3/status", {"status": "done"})
+    cells = _stats_cells(client.get("/stats").text)
+    assert cells == [("To read", "1"), ("Reading", "1"), ("Done", "1"), ("Total", "3")]
+
+
+def test_every_page_links_to_the_stats(client):
+    for path in ("/", "/stats", "/nope"):
+        assert '<a href="/stats">Statistics</a>' in client.get(path).text
+
+
+def test_posting_to_stats_gets_405(client):
+    assert client.post("/stats", {}).status == 405
