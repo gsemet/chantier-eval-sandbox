@@ -32,6 +32,7 @@ uv run --locked pytest -q           # the CI's command
 | POST | `/items/<id>/status` | Sets `status` from the form. 303 to the item's page; 400 on an unknown status; 404 on an unknown item |
 | GET | `/api/items` | All items as a JSON array in id order (`id`, `title`, `url` or `null`, `status`, `added`); `application/json; charset=utf-8`, titles not HTML-escaped. The list page links to it (`JSON`) |
 | GET | `/api/items/<id>` | That item as a JSON object; unknown id: 404 `{"error": "not found"}` as JSON |
+| GET | `/stats` | The statistics page: a table of the item counts for To read, Reading, Done and Total |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
 
