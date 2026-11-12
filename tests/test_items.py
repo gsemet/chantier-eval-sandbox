@@ -9,6 +9,83 @@ def test_a_valid_item_is_trimmed():
     assert clean == {"title": "A book", "url": "https://example.com"}
 
 
+def _add(client, title="A book", url="https://example.com"):
+    client.post("/items", {"title": title, "url": url})
+    return 1
+
+
+def test_edit_page_shows_the_form_with_current_values(client):
+    item_id = _add(client, 'Tom & "Jerry"', "https://example.com/?a=1&b=2")
+    page = client.get(f"/items/{item_id}/edit")
+    assert page.status == 200
+    assert f'<form method="post" action="/items/{item_id}/edit">' in page.text
+    assert 'name="title"' in page.text and 'name="url"' in page.text
+    assert "Tom &amp; &quot;Jerry&quot;" in page.text
+    assert "https://example.com/?a=1&amp;b=2" in page.text
+
+
+def test_edit_of_an_unknown_item_is_404(client):
+    assert client.get("/items/99/edit").status == 404
+    assert client.post("/items/99/edit", {"title": "x", "url": ""}).status == 404
+
+
+def test_edit_saves_trimmed_values_and_keeps_status_and_date(client):
+    from shelf import store
+
+    item_id = _add(client)
+    client.post(f"/items/{item_id}/status", {"status": "done"})
+    before = store.get(item_id)
+    response = client.post(f"/items/{item_id}/edit", {"title": "  New  ", "url": " https://new.example "})
+    assert response.status == 303
+    assert response.headers["location"] == f"/items/{item_id}"
+    after = store.get(item_id)
+    assert after["title"] == "New" and after["url"] == "https://new.example"
+    assert after["status"] == "done" and after["added"] == before["added"]
+
+
+def test_edit_can_clear_the_link(client):
+    from shelf import store
+
+    item_id = _add(client)
+    assert client.post(f"/items/{item_id}/edit", {"title": "A book", "url": ""}).status == 303
+    assert store.get(item_id)["url"] == ""
+
+
+@pytest.mark.parametrize(
+    "title, url, message",
+    [("   ", "", "required"), ("x" * 201, "", "200"), ("A", "ftp://example.com", "http")],
+)
+def test_invalid_edit_is_400_and_saves_nothing(client, title, url, message):
+    from shelf import store
+
+    item_id = _add(client)
+    before = store.get(item_id)
+    response = client.post(f"/items/{item_id}/edit", {"title": title, "url": url})
+    assert response.status == 400
+    assert message in response.text
+    assert f'action="/items/{item_id}/edit"' in response.text
+    assert store.get(item_id) == before
+
+
+def test_invalid_edit_shows_the_values_entered_escaped(client):
+    item_id = _add(client)
+    response = client.post(f"/items/{item_id}/edit", {"title": "<b>x</b>", "url": "nope"})
+    assert response.status == 400
+    assert 'value="&lt;b&gt;x&lt;/b&gt;"' in response.text
+    assert 'value="nope"' in response.text
+
+
+def test_item_page_links_to_edit(client):
+    item_id = _add(client)
+    assert f'<a href="/items/{item_id}/edit">Edit</a>' in client.get(f"/items/{item_id}").text
+
+
+def test_edit_route_with_wrong_method_is_405(client):
+    item_id = _add(client)
+    for method in ("PUT", "DELETE"):
+        assert client._call(method, f"/items/{item_id}/edit").status == 405
+
+
 def test_the_link_is_optional():
     assert validate_new("A book", "")[1] is None
 
