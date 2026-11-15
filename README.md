@@ -31,10 +31,12 @@ uv run --locked pytest -q           # the CI's command
 | POST | `/items/<id>/edit` | Saves `title` and `url` from the form, validated as when adding. 303 to the item's page. On invalid input: 400, the edit page again with the error message and the values entered, nothing saved; 404 on an unknown item |
 | POST | `/items/<id>/status` | Sets `status` from the form. 303 to the item's page; 400 on an unknown status; 404 on an unknown item |
 | POST | `/items/<id>/delete` | Deletes the item. 303 to `/`; 404 page if unknown. Ids are never reused |
+| GET | `/api/items` | All items as a JSON array in id order: `id`, `title`, `url` (`null` when none), `status`, `added`. `application/json; charset=utf-8` |
+| GET | `/api/items/<id>` | One item as a JSON object; 404 `{"error": "not found"}` as JSON if unknown |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
 
-Any other path gets the 404 page. A known path with the wrong method gets 405.
+Any other path gets the 404 page. A known path with the wrong method gets 405. The list page links to `/api/items` with the text `JSON`.
 
 ## Data
 
