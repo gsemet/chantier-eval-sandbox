@@ -28,8 +28,8 @@ def test_the_link_starts_with_http_or_https(url):
     assert "http" in validate_new("A book", url)[1]
 
 
-def _add(client, title):
-    client.post("/items", {"title": title})
+def _add(client, title="A book", url="https://example.com"):
+    client.post("/items", {"title": title, "url": url})
 
 
 def test_the_item_page_has_a_delete_form(client):
@@ -75,3 +75,64 @@ def test_an_id_is_never_given_twice(client):
     client.post("/items/1/delete", {})
     _add(client, "Fourth")
     assert client.get("/items/4").status == 200
+
+
+def test_the_edit_page_holds_the_current_values_escaped(client):
+    _add(client, 'A "quoted" <b>', "https://example.com/?a=1&b=2")
+    page = client.get("/items/1/edit")
+    assert page.status == 200
+    assert '<form method="post" action="/items/1/edit">' in page.text
+    assert 'name="title" value="A &quot;quoted&quot; &lt;b&gt;"' in page.text
+    assert 'name="url" value="https://example.com/?a=1&amp;b=2"' in page.text
+
+
+def test_the_edit_page_of_an_unknown_item_is_404(client):
+    assert client.get("/items/9/edit").status == 404
+    assert client.post("/items/9/edit", {"title": "x", "url": ""}).status == 404
+
+
+def test_a_valid_edit_saves_trimmed_values_and_keeps_status_and_date(client):
+    _add(client)
+    client.post("/items/1/status", {"status": "reading"})
+    before = client.get("/items/1").text
+    response = client.post("/items/1/edit", {"title": "  New  ", "url": " http://x.org "})
+    assert response.status == 303
+    assert response.headers["location"] == "/items/1"
+    after = client.get("/items/1").text
+    assert "<h1>New</h1>" in after
+    assert 'href="http://x.org"' in after
+    assert 'class="status">reading<' in after
+    added = before.split("Added ")[1].split(".")[0]
+    assert f"Added {added}." in after
+
+
+def test_a_valid_edit_may_clear_the_link(client):
+    _add(client)
+    assert client.post("/items/1/edit", {"title": "A book", "url": ""}).status == 303
+    assert "example.com" not in client.get("/items/1").text
+
+
+@pytest.mark.parametrize(
+    "title, url, message",
+    [("   ", "", "required"), ("x" * 201, "", "200"), ("Ok", "ftp://x", "http")],
+)
+def test_an_invalid_edit_is_400_and_saves_nothing(client, title, url, message):
+    _add(client)
+    response = client.post("/items/1/edit", {"title": title, "url": url})
+    assert response.status == 400
+    assert message in response.text
+    assert f'name="title" value="{title.strip()}"' in response.text
+    assert f'name="url" value="{url}"' in response.text
+    assert "<h1>A book</h1>" in client.get("/items/1").text
+    assert "https://example.com" in client.get("/items/1").text
+
+
+def test_the_item_page_links_to_the_edit_page(client):
+    _add(client)
+    assert '<a href="/items/1/edit">Edit</a>' in client.get("/items/1").text
+
+
+def test_the_edit_route_refuses_other_methods(client):
+    _add(client)
+    for method in ("PUT", "DELETE"):
+        assert client._call(method, "/items/1/edit").status == 405

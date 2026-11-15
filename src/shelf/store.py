@@ -72,3 +72,14 @@ def delete(item_id: int) -> bool:
         return False
     _write(data["next_id"], kept)
     return True
+
+
+def update(item_id: int, title: str, url: str) -> dict | None:
+    data = _read()
+    item = next((i for i in data["items"] if i["id"] == item_id), None)
+    if item is None:
+        return None
+    item["title"] = title
+    item["url"] = url
+    _write(data["next_id"], data["items"])
+    return item
