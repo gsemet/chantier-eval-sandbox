@@ -1,4 +1,5 @@
 import json
+import re
 
 from shelf import __version__, store
 
@@ -91,3 +92,53 @@ def test_healthz(client):
     response = client.get("/healthz")
     assert response.status == 200
     assert json.loads(response.text) == {"status": "ok", "version": __version__}
+
+
+def _shelf(client):
+    for title in ("Dune", "Emma", "Ulysses"):
+        client.post("/items", {"title": title})
+    client.post("/items/2/status", {"status": "reading"})
+    client.post("/items/3/status", {"status": "done"})
+
+
+def test_filtering_by_status_keeps_only_matching_items(client):
+    _shelf(client)
+    for status, kept, dropped in (("to-read", "Dune", "Emma"), ("reading", "Emma", "Dune"), ("done", "Ulysses", "Emma")):
+        page = client.get(f"/?status={status}").text
+        assert kept in page and dropped not in page
+
+
+def test_no_or_empty_status_lists_everything(client):
+    _shelf(client)
+    for path in ("/", "/?status="):
+        page = client.get(path).text
+        assert "Dune" in page and "Emma" in page and "Ulysses" in page
+
+
+def test_an_unknown_status_gets_400_with_the_escaped_value(client):
+    response = client.get("/?status=lost")
+    assert response.status == 400
+    assert "Unknown status: lost" in response.text
+    page = client.get("/?status=%3Cscript%3E").text
+    assert "<script>" not in page and "Unknown status: &lt;script&gt;" in page
+
+
+def test_the_filter_nav_links_and_marks_the_current_one(client):
+    expected = [("All", "/"), ("To read", "/?status=to-read"), ("Reading", "/?status=reading"), ("Done", "/?status=done")]
+    for current, path in [(None, "/")] + [(label, href) for label, href in expected[1:]]:
+        page = client.get(path).text
+        nav = page[page.index('<nav class="filters">'):page.index("</nav>")]
+        links = re.findall(r'<a href="([^"]*)"([^>]*)>([^<]*)</a>', nav)
+        assert [(h, t) for h, _, t in links] == [(h, t) for t, h in expected]
+        marked = [t for _, attrs, t in links if 'aria-current="page"' in attrs]
+        assert marked == [current or "All"]
+
+
+def test_a_filter_with_no_match_says_so(client):
+    client.post("/items", {"title": "Dune"})
+    assert "No items with this status." in client.get("/?status=done").text
+    assert "No items with this status." not in client.get("/").text
+
+
+def test_the_filtered_index_still_only_accepts_get(client):
+    assert client.post("/?status=done", {}).status == 405
