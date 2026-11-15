@@ -27,6 +27,8 @@ uv run --locked pytest -q           # the CI's command
 | GET | `/` | The list of items (title linked to its page, status, date added), a filter nav and the add form. Query parameter `status` (`to-read`, `reading` or `done`; absent or empty: all) keeps only the items with that status, and a filter with no match shows `No items with this status.`; any other value: 400 with `Unknown status: <value>` |
 | POST | `/items` | Adds an item from the form (`title`, `url`). On success: 303 to `/`. On invalid input: 400, the list page again with the error message and the values entered |
 | GET | `/items/<id>` | The item's page; 404 page if unknown |
+| GET | `/items/<id>/edit` | The edit form for an item, holding its current `title` and `url`; 404 page if unknown |
+| POST | `/items/<id>/edit` | Saves `title` and `url`, validated as when adding. 303 to the item's page; 400 on invalid input (the edit page again with the error message and the values entered, nothing saved); 404 on an unknown item |
 | POST | `/items/<id>/status` | Sets `status` from the form. 303 to the item's page; 400 on an unknown status; 404 on an unknown item |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
