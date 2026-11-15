@@ -143,3 +143,41 @@ def test_a_filter_matching_nothing_says_so(client):
 
 def test_the_index_with_a_filter_rejects_other_methods(client):
     assert client.post("/?status=done", {}).status == 405
+
+
+def test_the_stats_page_shows_four_zeros_on_an_empty_shelf(client):
+    response = client.get("/stats")
+    assert response.status == 200
+    assert "<h1>Statistics</h1>" in response.text and '<table class="stats">' in response.text
+    assert response.text.count("<td>0</td>") == 4
+    assert __version__ in response.text
+
+
+def test_the_stats_page_counts_by_status_in_order(client):
+    client.post("/items", {"title": "A", "url": ""})
+    client.post("/items", {"title": "B", "url": ""})
+    client.post("/items", {"title": "C", "url": ""})
+    client.post("/items/2/status", {"status": "reading"})
+    client.post("/items/3/status", {"status": "done"})
+    client.post("/items/1/status", {"status": "done"})
+    text = client.get("/stats").text
+    rows = [
+        "<tr><th>To read</th><td>0</td></tr>",
+        "<tr><th>Reading</th><td>1</td></tr>",
+        "<tr><th>Done</th><td>2</td></tr>",
+        "<tr><th>Total</th><td>3</td></tr>",
+    ]
+    positions = [text.index(r) for r in rows]
+    assert positions == sorted(positions)
+
+
+def test_every_page_links_to_the_stats_page(client):
+    client.post("/items", {"title": "A", "url": ""})
+    for path in ("/", "/items/1", "/stats", "/missing"):
+        assert '<a href="/stats">Statistics</a>' in client.get(path).text
+
+
+def test_posting_to_stats_gets_405(client):
+    response = client.post("/stats", {})
+    assert response.status == 405
+    assert response.headers["allow"] == "GET"

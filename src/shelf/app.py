@@ -86,6 +86,11 @@ def app(environ, start_response):
             return _respond(start_response, 404, api.not_found(), api.JSON)
         return _respond(start_response, 200, api.item(entry), api.JSON)
 
+    if path == "/stats":
+        if method != "GET":
+            return _error(start_response, 405, [("Allow", "GET")])
+        return _respond(start_response, 200, views.stats(store.load()))
+
     match = ITEM.match(path)
     if match:
         if method != "GET":

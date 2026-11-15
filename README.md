@@ -33,6 +33,7 @@ uv run --locked pytest -q           # the CI's command
 | POST | `/items/<id>/delete` | Deletes the item. 303 to `/`; 404 page if unknown. Ids are never reused |
 | GET | `/api/items` | All items as a JSON array in id order: `id`, `title`, `url` (`null` when none), `status`, `added`. `application/json; charset=utf-8` |
 | GET | `/api/items/<id>` | One item as a JSON object; 404 `{"error": "not found"}` as JSON if unknown |
+| GET | `/stats` | The statistics page: counts of items to read, reading, done, and the total |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
 

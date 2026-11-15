@@ -84,6 +84,16 @@ def edit(entry: dict, error: str = "", values: dict | None = None) -> str:
     return page(f"Edit {entry['title']}", body)
 
 
+def stats(items: list[dict]) -> str:
+    labels = {"to-read": "To read", "reading": "Reading", "done": "Done"}
+    counts = [(labels[s], sum(1 for i in items if i["status"] == s)) for s in STATUSES]
+    rows = "".join(
+        f"<tr><th>{escape(label)}</th><td>{n}</td></tr>"
+        for label, n in [*counts, ("Total", len(items))]
+    )
+    return page("Statistics", _template("stats.html").substitute(rows=rows))
+
+
 def error(status: int, message: str) -> str:
     body = _template("error.html").substitute(status=status, message=escape(message))
     return page(f"{status} {message}", body)
