@@ -60,6 +60,11 @@ def app(environ, start_response):
             items = [i for i in items if i["status"] == status]
         return _respond(start_response, 200, views.index(items, status=status))
 
+    if path == "/stats":
+        if method != "GET":
+            return _error(start_response, 405, [("Allow", "GET")])
+        return _respond(start_response, 200, views.stats(store.load()))
+
     if path == "/items":
         if method != "POST":
             return _error(start_response, 405, [("Allow", "POST")])
