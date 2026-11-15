@@ -13,30 +13,41 @@ def data_path() -> Path:
     return Path(os.environ.get("SHELF_DATA") or "shelf.json")
 
 
-def load() -> list[dict]:
+def _read() -> dict:
+    """The file as {"next_id", "items"}; an older file is a bare list of items."""
     path = data_path()
     if not path.exists():
-        return []
-    return json.loads(path.read_text(encoding="utf-8"))
+        return {"next_id": 1, "items": []}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        data = {"items": data}
+    items = data["items"]
+    floor = max((i["id"] for i in items), default=0) + 1
+    return {"next_id": max(data.get("next_id", 1), floor), "items": items}
 
 
-def save(items: list[dict]) -> None:
+def _write(next_id: int, items: list[dict]) -> None:
     path = data_path()
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(items, indent=2) + "\n", encoding="utf-8")
+    body = json.dumps({"next_id": next_id, "items": items}, indent=2)
+    temporary.write_text(body + "\n", encoding="utf-8")
     os.replace(temporary, path)
 
 
+def load() -> list[dict]:
+    return _read()["items"]
+
+
 def add(title: str, url: str = "") -> dict:
-    items = load()
+    data = _read()
     item = {
-        "id": max((i["id"] for i in items), default=0) + 1,
+        "id": data["next_id"],
         "title": title,
         "url": url,
         "status": DEFAULT_STATUS,
         "added": datetime.date.today().isoformat(),
     }
-    save([*items, item])
+    _write(data["next_id"] + 1, [*data["items"], item])
     return item
 
 
@@ -45,10 +56,19 @@ def get(item_id: int) -> dict | None:
 
 
 def set_status(item_id: int, status: str) -> dict | None:
-    items = load()
-    item = next((i for i in items if i["id"] == item_id), None)
+    data = _read()
+    item = next((i for i in data["items"] if i["id"] == item_id), None)
     if item is None:
         return None
     item["status"] = status
-    save(items)
+    _write(data["next_id"], data["items"])
     return item
+
+
+def delete(item_id: int) -> bool:
+    data = _read()
+    kept = [i for i in data["items"] if i["id"] != item_id]
+    if len(kept) == len(data["items"]):
+        return False
+    _write(data["next_id"], kept)
+    return True
