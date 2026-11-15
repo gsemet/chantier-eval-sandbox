@@ -18,7 +18,7 @@ def test_add_numbers_items_from_one_and_defaults_the_status():
 
 def test_items_survive_a_reload_and_the_save_leaves_no_temporary_file(shelf_data):
     store.add("Kept")
-    assert json.loads(shelf_data.read_text(encoding="utf-8"))[0]["title"] == "Kept"
+    assert json.loads(shelf_data.read_text(encoding="utf-8"))["items"][0]["title"] == "Kept"
     assert [p.name for p in shelf_data.parent.iterdir()] == ["shelf.json"]
 
 
@@ -28,6 +28,16 @@ def test_set_status_and_unknown_item():
     assert store.get(item["id"])["status"] == "done"
     assert store.set_status(99, "done") is None
     assert store.get(99) is None
+
+
+def test_a_legacy_bare_list_file_loads_and_the_next_add_follows_the_highest_id(shelf_data):
+    legacy = [
+        {"id": 3, "title": "Old", "url": "", "status": "done", "added": "2024-01-01"},
+        {"id": 7, "title": "Older", "url": "", "status": "to-read", "added": "2024-01-02"},
+    ]
+    shelf_data.write_text(json.dumps(legacy), encoding="utf-8")
+    assert [i["id"] for i in store.load()] == [3, 7]
+    assert store.add("New")["id"] == 8
 
 
 def test_the_data_file_defaults_to_shelf_json_here(monkeypatch, tmp_path):

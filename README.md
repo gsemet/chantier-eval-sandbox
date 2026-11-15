@@ -28,6 +28,7 @@ uv run --locked pytest -q           # the CI's command
 | POST | `/items` | Adds an item from the form (`title`, `url`). On success: 303 to `/`. On invalid input: 400, the list page again with the error message and the values entered |
 | GET | `/items/<id>` | The item's page; 404 page if unknown |
 | POST | `/items/<id>/status` | Sets `status` from the form. 303 to the item's page; 400 on an unknown status; 404 on an unknown item |
+| POST | `/items/<id>/delete` | Deletes the item. 303 to `/`; 404 page if unknown. Ids are never reused |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
 
@@ -38,5 +39,6 @@ Any other path gets the 404 page. A known path with the wrong method gets 405.
 The items live in a JSON file: the path in the `SHELF_DATA` environment variable, else
 `shelf.json` in the current folder. A missing file is an empty shelf.
 
+The file holds `next_id` (the id the next item gets, never lowered by a delete) and the `items`.
 An item has an `id`, a `title` (1 to 200 characters), an optional `url` (starting with `http://`
 or `https://`), a `status` (`to-read`, `reading` or `done`) and the date it was `added`.
