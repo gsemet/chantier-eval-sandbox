@@ -7,13 +7,14 @@ from http import HTTPStatus
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from shelf import __version__, store, views
+from shelf import __version__, api, store, views
 from shelf.models import STATUSES, validate_new
 
 STATIC = Path(__file__).parent / "static"
 ITEM = re.compile(r"^/items/(\d+)$")
 ITEM_EDIT = re.compile(r"^/items/(\d+)/edit$")
 ITEM_STATUS = re.compile(r"^/items/(\d+)/status$")
+API_ITEM = re.compile(r"^/api/items/(\d+)$")
 HTML = "text/html; charset=utf-8"
 
 
@@ -107,6 +108,21 @@ def app(environ, start_response):
             return _error(start_response, 400)
         store.set_status(item_id, status)
         return _redirect(start_response, f"/items/{item_id}")
+
+    if path == "/api/items":
+        if method != "GET":
+            return _error(start_response, 405, [("Allow", "GET")])
+        body = api.dumps([api.item(i) for i in sorted(store.load(), key=lambda i: i["id"])])
+        return _respond(start_response, 200, body, api.JSON)
+
+    match = API_ITEM.match(path)
+    if match:
+        if method != "GET":
+            return _error(start_response, 405, [("Allow", "GET")])
+        entry = store.get(int(match.group(1)))
+        if entry is None:
+            return _respond(start_response, 404, api.dumps({"error": "not found"}), api.JSON)
+        return _respond(start_response, 200, api.dumps(api.item(entry)), api.JSON)
 
     if path == "/static/style.css":
         if method != "GET":
