@@ -85,3 +85,42 @@ def test_the_edit_route_refuses_other_methods(client):
     _add(client)
     assert client._call("PUT", "/items/1/edit").status == 405
     assert client._call("DELETE", "/items/1/edit").status == 405
+
+
+
+def test_the_item_page_has_a_delete_form(client):
+    client.post("/items", {"title": "Dune"})
+    page = client.get("/items/1").text
+    assert '<form method="post" action="/items/1/delete">' in page
+    assert "Delete</button>" in page
+
+
+def test_deleting_an_item_redirects_and_removes_only_it(client):
+    client.post("/items", {"title": "Dune"})
+    client.post("/items", {"title": "Emma"})
+    response = client.post("/items/1/delete", {})
+    assert (response.status, response.headers["location"]) == (303, "/")
+    assert "Dune" not in client.get("/").text and "Emma" in client.get("/").text
+    assert client.get("/items/1").status == 404
+    assert client.get("/items/2").status == 200
+
+
+def test_deleting_an_unknown_item_gets_the_404_page(client):
+    response = client.post("/items/9/delete", {})
+    assert response.status == 404
+    assert "Not Found" in response.text
+
+
+def test_get_on_the_delete_path_gets_405(client):
+    client.post("/items", {"title": "Dune"})
+    assert client.get("/items/1/delete").status == 405
+    assert client.get("/items/1").status == 200
+
+
+def test_an_id_is_not_reused_after_deleting_the_highest_id(client):
+    client.post("/items", {"title": "One"})
+    client.post("/items", {"title": "Two"})
+    client.post("/items/2/delete", {})
+    client.post("/items", {"title": "Three"})
+    assert client.get("/items/2").status == 404
+    assert 'href="/items/3"' in client.get("/").text

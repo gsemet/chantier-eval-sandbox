@@ -15,6 +15,7 @@ ITEM = re.compile(r"^/items/(\d+)$")
 ITEM_EDIT = re.compile(r"^/items/(\d+)/edit$")
 ITEM_STATUS = re.compile(r"^/items/(\d+)/status$")
 API_ITEM = re.compile(r"^/api/items/(\d+)$")
+ITEM_DELETE = re.compile(r"^/items/(\d+)/delete$")
 HTML = "text/html; charset=utf-8"
 
 
@@ -128,6 +129,13 @@ def app(environ, start_response):
         if entry is None:
             return _respond(start_response, 404, api.dumps({"error": "not found"}), api.JSON)
         return _respond(start_response, 200, api.dumps(api.item(entry)), api.JSON)
+    match = ITEM_DELETE.match(path)
+    if match:
+        if method != "POST":
+            return _error(start_response, 405, [("Allow", "POST")])
+        if not store.delete(int(match.group(1))):
+            return _error(start_response, 404)
+        return _redirect(start_response, "/")
 
     if path == "/static/style.css":
         if method != "GET":

@@ -33,6 +33,7 @@ uv run --locked pytest -q           # the CI's command
 | POST | `/items/<id>/status` | Sets `status` from the form. 303 to the item's page; 400 on an unknown status; 404 on an unknown item |
 | GET | `/api/items` | All items as a JSON array in id order (`id`, `title`, `url` or `null`, `status`, `added`), `application/json; charset=utf-8`; titles as entered, not HTML-escaped |
 | GET | `/api/items/<id>` | One item as a JSON object; unknown id: 404 with `{"error": "not found"}` as JSON |
+| POST | `/items/<id>/delete` | Deletes the item. 303 to `/`; 404 page on an unknown item. Its id is never given again |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
 
