@@ -91,3 +91,55 @@ def test_healthz(client):
     response = client.get("/healthz")
     assert response.status == 200
     assert json.loads(response.text) == {"status": "ok", "version": __version__}
+
+
+def _three(client):
+    for title in ("Dune", "Emma", "Ubik"):
+        client.post("/items", {"title": title})
+    client.post("/items/2/status", {"status": "reading"})
+    client.post("/items/3/status", {"status": "done"})
+
+
+def test_filtering_the_list_by_status(client):
+    _three(client)
+    page = client.get("/?status=reading").text
+    assert "Emma" in page and "Dune" not in page and "Ubik" not in page
+    assert "Dune" in client.get("/?status=to-read").text
+    assert "Ubik" in client.get("/?status=done").text
+
+
+def test_no_or_empty_status_shows_all(client):
+    _three(client)
+    for path in ("/", "/?status="):
+        page = client.get(path).text
+        assert all(t in page for t in ("Dune", "Emma", "Ubik"))
+
+
+def test_an_unknown_status_gets_400_with_the_escaped_value(client):
+    response = client.get("/?status=<b>x</b>")
+    assert response.status == 400
+    assert "Unknown status: &lt;b&gt;x&lt;/b&gt;" in response.text
+    assert "<b>x" not in response.text
+
+
+def test_the_filter_nav_marks_the_current_link(client):
+    import re
+
+    expected = [("All", "/"), ("To read", "/?status=to-read"), ("Reading", "/?status=reading"), ("Done", "/?status=done")]
+    for path, current in [("/", "All"), ("/?status=", "All"), ("/?status=to-read", "To read"),
+                          ("/?status=reading", "Reading"), ("/?status=done", "Done")]:
+        text = client.get(path).text
+        nav = re.search(r'<nav class="filters">(.*?)</nav>', text, re.S).group(1)
+        links = re.findall(r'<a href="([^"]*)"([^>]*)>([^<]*)</a>', nav)
+        assert [(label, href) for href, _, label in links] == expected
+        assert [label for _, attrs, label in links if 'aria-current="page"' in attrs] == [current]
+
+
+def test_a_filter_matching_nothing_says_so(client):
+    client.post("/items", {"title": "Dune"})
+    assert "No items with this status." in client.get("/?status=done").text
+    assert "No items with this status." not in client.get("/").text
+
+
+def test_the_index_with_a_filter_rejects_other_methods(client):
+    assert client.post("/?status=done", {}).status == 405
