@@ -144,3 +144,42 @@ def test_a_filter_with_no_match_says_so(client):
 
 def test_the_index_with_a_filter_rejects_other_methods(client):
     assert client.post("/?status=done", {}).status == 405
+
+
+def _stats_rows(text):
+    import re
+    return re.findall(r"<tr><th>(.*?)</th><td>(.*?)</td></tr>", text)
+
+
+def test_the_stats_page_of_an_empty_shelf_shows_four_zeros(client):
+    response = client.get("/stats")
+    assert response.status == 200
+    assert "<h1>Statistics</h1>" in response.text
+    assert '<table class="stats">' in response.text
+    assert _stats_rows(response.text) == [("To read", "0"), ("Reading", "0"), ("Done", "0"), ("Total", "0")]
+
+
+def test_the_stats_page_counts_items_by_status(client):
+    for title in ("A", "B", "C", "D"):
+        client.post("/items", {"title": title, "url": ""})
+    client.post("/items/2/status", {"status": "reading"})
+    client.post("/items/3/status", {"status": "done"})
+    client.post("/items/4/status", {"status": "done"})
+    rows = _stats_rows(client.get("/stats").text)
+    assert rows == [("To read", "1"), ("Reading", "1"), ("Done", "2"), ("Total", "4")]
+
+
+def test_the_stats_page_shows_the_version(client):
+    assert f"shelf {__version__}" in client.get("/stats").text
+
+
+def test_every_page_links_to_the_stats(client):
+    client.post("/items", {"title": "Dune", "url": ""})
+    for path in ("/", "/stats", "/items/1", "/nope"):
+        assert '<a href="/stats">Statistics</a>' in client.get(path).text
+
+
+def test_the_stats_page_rejects_other_methods(client):
+    response = client.post("/stats", {})
+    assert response.status == 405
+    assert response.headers["allow"] == "GET"

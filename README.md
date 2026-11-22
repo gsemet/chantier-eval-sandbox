@@ -25,6 +25,7 @@ uv run --locked pytest -q           # the CI's command
 | Method | Path | Does |
 | --- | --- | --- |
 | GET | `/` | The list of items (title linked to its page, status, date added) and the add form, under a filters nav (All, To read, Reading, Done). Query parameter `status` (`to-read`, `reading` or `done`; absent or empty: all items) keeps only the items with that status, and a filter with no match shows `No items with this status.`; any other value gets 400 `Unknown status: <value>` |
+| GET | `/stats` | The statistics page: a table of the number of items To read, Reading, Done and the Total (zeros on an empty shelf) |
 | POST | `/items` | Adds an item from the form (`title`, `url`). On success: 303 to `/`. On invalid input: 400, the list page again with the error message and the values entered |
 | GET | `/items/<id>` | The item's page; 404 page if unknown |
 | GET | `/items/<id>/edit` | The edit form (`title`, `url`) filled with the item's values; 404 page if unknown |

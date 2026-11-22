@@ -90,3 +90,14 @@ def edit(entry: dict, error: str = "", values: dict | None = None) -> str:
         url_value=escape(values.get("url") or "", quote=True),
     )
     return page("Edit an item", body)
+
+
+STAT_ROWS = [("To read", "to-read"), ("Reading", "reading"), ("Done", "done")]
+
+
+def stats(items: list[dict]) -> str:
+    counts = [(label, sum(1 for i in items if i["status"] == key)) for label, key in STAT_ROWS]
+    counts.append(("Total", len(items)))
+    rows = "\n".join(f"<tr><th>{escape(label)}</th><td>{count}</td></tr>" for label, count in counts)
+    body = _template("stats.html").substitute(rows=rows)
+    return page("Statistics", body)
