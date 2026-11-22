@@ -1,0 +1,8 @@
+    <h1>Edit an item</h1>
+$error
+    <form method="post" action="/items/$id/edit">
+      <label>Title <input name="title" value="$title_value" maxlength="400" required></label>
+      <label>Link <input name="url" value="$url_value" placeholder="https://"></label>
+      <button type="submit">Save</button>
+    </form>
+    <p><a href="/items/$id">Back to the item</a></p>

@@ -8,10 +8,11 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 from shelf import __version__, store, views
-from shelf.models import STATUSES, validate_new
+from shelf.models import STATUSES, validate_item
 
 STATIC = Path(__file__).parent / "static"
 ITEM = re.compile(r"^/items/(\d+)$")
+ITEM_EDIT = re.compile(r"^/items/(\d+)/edit$")
 ITEM_STATUS = re.compile(r"^/items/(\d+)/status$")
 HTML = "text/html; charset=utf-8"
 
@@ -56,7 +57,7 @@ def app(environ, start_response):
         if method != "POST":
             return _error(start_response, 405, [("Allow", "POST")])
         form = _form(environ)
-        values, problem = validate_new(form.get("title", ""), form.get("url", ""))
+        values, problem = validate_item(form.get("title", ""), form.get("url", ""))
         if problem:
             return _respond(start_response, 400, views.index(store.load(), problem, values))
         store.add(values["title"], values["url"])
@@ -70,6 +71,23 @@ def app(environ, start_response):
         if entry is None:
             return _error(start_response, 404)
         return _respond(start_response, 200, views.item(entry))
+
+    match = ITEM_EDIT.match(path)
+    if match:
+        if method not in ("GET", "POST"):
+            return _error(start_response, 405, [("Allow", "GET, POST")])
+        item_id = int(match.group(1))
+        entry = store.get(item_id)
+        if entry is None:
+            return _error(start_response, 404)
+        if method == "GET":
+            return _respond(start_response, 200, views.edit(entry))
+        form = _form(environ)
+        values, problem = validate_item(form.get("title", ""), form.get("url", ""))
+        if problem:
+            return _respond(start_response, 400, views.edit(entry, problem, values))
+        store.update(item_id, values["title"], values["url"])
+        return _redirect(start_response, f"/items/{item_id}")
 
     match = ITEM_STATUS.match(path)
     if match:

@@ -27,6 +27,8 @@ uv run --locked pytest -q           # the CI's command
 | GET | `/` | The list of items (title linked to its page, status, date added) and the add form |
 | POST | `/items` | Adds an item from the form (`title`, `url`). On success: 303 to `/`. On invalid input: 400, the list page again with the error message and the values entered |
 | GET | `/items/<id>` | The item's page; 404 page if unknown |
+| GET | `/items/<id>/edit` | The edit form (`title`, `url`) filled with the item's values; 404 page if unknown |
+| POST | `/items/<id>/edit` | Saves `title` and `url` (same validation as adding; status and date added unchanged). On success: 303 to the item's page. On invalid input: 400, the edit page again with the error message and the values entered, nothing saved; 404 on an unknown item |
 | POST | `/items/<id>/status` | Sets `status` from the form. 303 to the item's page; 400 on an unknown status; 404 on an unknown item |
 | GET | `/static/style.css` | The stylesheet |
 | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |

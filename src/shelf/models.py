@@ -1,4 +1,4 @@
-"""The item, its statuses, and the validation of a new item."""
+"""The item, its statuses, and the validation of an item."""
 from __future__ import annotations
 
 STATUSES = ("to-read", "reading", "done")
@@ -6,8 +6,8 @@ DEFAULT_STATUS = "to-read"
 MAX_TITLE = 200
 
 
-def validate_new(title: str, url: str) -> tuple[dict, str | None]:
-    """Return the cleaned values of a new item and an error message (None when valid)."""
+def validate_item(title: str, url: str) -> tuple[dict, str | None]:
+    """Return the cleaned values of an item and an error message (None when valid)."""
     title = (title or "").strip()
     url = (url or "").strip()
     clean = {"title": title, "url": url}

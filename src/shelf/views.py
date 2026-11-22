@@ -57,3 +57,15 @@ def item(entry: dict) -> str:
 def error(status: int, message: str) -> str:
     body = _template("error.html").substitute(status=status, message=escape(message))
     return page(f"{status} {message}", body)
+
+
+def edit(entry: dict, error: str = "", values: dict | None = None) -> str:
+    values = values if values is not None else entry
+    message = f'<p class="error">{escape(error)}</p>' if error else ""
+    body = _template("edit.html").substitute(
+        id=entry["id"],
+        error=message,
+        title_value=escape(values.get("title") or "", quote=True),
+        url_value=escape(values.get("url") or "", quote=True),
+    )
+    return page("Edit an item", body)
