@@ -7,12 +7,13 @@ from http import HTTPStatus
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from shelf import __version__, store, views
+from shelf import __version__, api, store, views
 from shelf.models import STATUSES, validate_item
 
 STATIC = Path(__file__).parent / "static"
 ITEM = re.compile(r"^/items/(\d+)$")
 ITEM_EDIT = re.compile(r"^/items/(\d+)/edit$")
+API_ITEM = re.compile(r"^/api/items/(\d+)$")
 ITEM_STATUS = re.compile(r"^/items/(\d+)/status$")
 ITEM_DELETE = re.compile(r"^/items/(\d+)/delete$")
 HTML = "text/html; charset=utf-8"
@@ -115,6 +116,20 @@ def app(environ, start_response):
         if not store.delete(int(match.group(1))):
             return _error(start_response, 404)
         return _redirect(start_response, "/")
+
+    if path == "/api/items":
+        if method != "GET":
+            return _error(start_response, 405, [("Allow", "GET")])
+        return _respond(start_response, 200, api.items(store.load()), api.JSON)
+
+    match = API_ITEM.match(path)
+    if match:
+        if method != "GET":
+            return _error(start_response, 405, [("Allow", "GET")])
+        entry = store.get(int(match.group(1)))
+        if entry is None:
+            return _respond(start_response, 404, api.not_found(), api.JSON)
+        return _respond(start_response, 200, api.item(entry), api.JSON)
 
     if path == "/static/style.css":
         if method != "GET":
