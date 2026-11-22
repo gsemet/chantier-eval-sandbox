@@ -13,31 +13,53 @@ def data_path() -> Path:
     return Path(os.environ.get("SHELF_DATA") or "shelf.json")
 
 
-def load() -> list[dict]:
+def _read() -> tuple[list[dict], int]:
+    """The items and the next id. A file that is a bare list (the first format) has no kept id."""
     path = data_path()
     if not path.exists():
-        return []
-    return json.loads(path.read_text(encoding="utf-8"))
+        return [], 1
+    data = json.loads(path.read_text(encoding="utf-8"))
+    items, kept = (data, 1) if isinstance(data, list) else (data["items"], data.get("next_id", 1))
+    return items, max(kept, max((i["id"] for i in items), default=0) + 1)
 
 
-def save(items: list[dict]) -> None:
+def load() -> list[dict]:
+    return _read()[0]
+
+
+def _write(items: list[dict], next_id: int) -> None:
     path = data_path()
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(items, indent=2) + "\n", encoding="utf-8")
+    document = {"next_id": next_id, "items": items}
+    temporary.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
     os.replace(temporary, path)
 
 
+def save(items: list[dict]) -> None:
+    """Save the items; the kept next id stays above every id ever given."""
+    _write(items, _read()[1])
+
+
 def add(title: str, url: str = "") -> dict:
-    items = load()
+    items, next_id = _read()
     item = {
-        "id": max((i["id"] for i in items), default=0) + 1,
+        "id": next_id,
         "title": title,
         "url": url,
         "status": DEFAULT_STATUS,
         "added": datetime.date.today().isoformat(),
     }
-    save([*items, item])
+    _write([*items, item], next_id + 1)
     return item
+
+
+def delete(item_id: int) -> bool:
+    items, next_id = _read()
+    kept = [i for i in items if i["id"] != item_id]
+    if len(kept) == len(items):
+        return False
+    _write(kept, next_id)
+    return True
 
 
 def get(item_id: int) -> dict | None:

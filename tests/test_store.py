@@ -18,7 +18,7 @@ def test_add_numbers_items_from_one_and_defaults_the_status():
 
 def test_items_survive_a_reload_and_the_save_leaves_no_temporary_file(shelf_data):
     store.add("Kept")
-    assert json.loads(shelf_data.read_text(encoding="utf-8"))[0]["title"] == "Kept"
+    assert json.loads(shelf_data.read_text(encoding="utf-8"))["items"][0]["title"] == "Kept"
     assert [p.name for p in shelf_data.parent.iterdir()] == ["shelf.json"]
 
 
@@ -35,3 +35,17 @@ def test_the_data_file_defaults_to_shelf_json_here(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     store.add("Local")
     assert (tmp_path / "shelf.json").exists()
+
+
+def test_delete_removes_an_item_and_the_next_id_is_kept():
+    store.add("One")
+    two = store.add("Two")
+    assert store.delete(two["id"]) is True
+    assert store.delete(two["id"]) is False
+    assert store.add("Three")["id"] == 3
+
+
+def test_a_file_that_is_a_bare_list_still_loads(shelf_data):
+    shelf_data.write_text(json.dumps([{"id": 4, "title": "Old", "url": "", "status": "done", "added": "2026-01-01"}]))
+    assert store.get(4)["title"] == "Old"
+    assert store.add("New")["id"] == 5
