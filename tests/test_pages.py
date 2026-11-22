@@ -91,3 +91,56 @@ def test_healthz(client):
     response = client.get("/healthz")
     assert response.status == 200
     assert json.loads(response.text) == {"status": "ok", "version": __version__}
+
+
+def _three(client):
+    for title in ("Dune", "Emma", "Ubik"):
+        client.post("/items", {"title": title, "url": ""})
+    client.post("/items/2/status", {"status": "reading"})
+    client.post("/items/3/status", {"status": "done"})
+
+
+def test_the_filter_keeps_only_the_items_with_that_status(client):
+    _three(client)
+    page = client.get("/?status=reading").text
+    assert "Emma" in page and "Dune" not in page and "Ubik" not in page
+
+
+def test_no_or_empty_status_shows_all_items(client):
+    _three(client)
+    for path in ("/", "/?status="):
+        page = client.get(path).text
+        assert all(t in page for t in ("Dune", "Emma", "Ubik"))
+
+
+def test_an_unknown_status_gets_400_with_the_escaped_value(client):
+    response = client.get("/?status=<b>x")
+    assert response.status == 400
+    assert "Unknown status: &lt;b&gt;x" in response.text and "<b>x" not in response.text
+
+
+def test_the_filters_nav_links_in_order(client):
+    text = client.get("/").text
+    nav = text[text.index('<nav class="filters">'):text.index("</nav>")]
+    hrefs = ['href="/"', 'href="/?status=to-read"', 'href="/?status=reading"', 'href="/?status=done"']
+    positions = [nav.index(h) for h in hrefs]
+    assert positions == sorted(positions)
+    for label in ("All", "To read", "Reading", "Done"):
+        assert f">{label}</a>" in nav
+
+
+def test_only_the_current_filter_has_aria_current(client):
+    for path, href in (("/", 'href="/"'), ("/?status=done", 'href="/?status=done"')):
+        text = client.get(path).text
+        nav = text[text.index('<nav class="filters">'):text.index("</nav>")]
+        assert nav.count("aria-current") == 1
+        assert f'<a {href} aria-current="page">' in nav
+
+
+def test_a_filter_with_no_match_says_so(client):
+    client.post("/items", {"title": "Dune", "url": ""})
+    assert "No items with this status." in client.get("/?status=done").text
+
+
+def test_the_index_with_a_filter_rejects_other_methods(client):
+    assert client.post("/?status=done", {}).status == 405

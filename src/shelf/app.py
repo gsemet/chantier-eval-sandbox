@@ -40,8 +40,8 @@ def _redirect(start_response, location: str):
     return _respond(start_response, 303, "", headers=[("Location", location)])
 
 
-def _error(start_response, code: int, headers=()):
-    return _respond(start_response, code, views.error(code, HTTPStatus(code).phrase), headers=headers)
+def _error(start_response, code: int, headers=(), message: str = ""):
+    return _respond(start_response, code, views.error(code, message or HTTPStatus(code).phrase), headers=headers)
 
 
 def app(environ, start_response):
@@ -51,7 +51,12 @@ def app(environ, start_response):
     if path == "/":
         if method != "GET":
             return _error(start_response, 405, [("Allow", "GET")])
-        return _respond(start_response, 200, views.index(store.load()))
+        query = parse_qs(environ.get("QUERY_STRING") or "", keep_blank_values=True)
+        current = query.get("status", [""])[0]
+        if current and current not in STATUSES:
+            return _error(start_response, 400, message=f"Unknown status: {current}")
+        items = [i for i in store.load() if i["status"] == current] if current else store.load()
+        return _respond(start_response, 200, views.index(items, current=current))
 
     if path == "/items":
         if method != "POST":
